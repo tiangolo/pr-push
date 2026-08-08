@@ -30,6 +30,7 @@ def github_transport(
                 "permissions": {
                     "contents": "write",
                     "metadata": "read",
+                    "pull_requests": "read",
                     "workflows": "write",
                 },
                 "repository_selection": "selected",
