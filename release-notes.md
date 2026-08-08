@@ -2,6 +2,8 @@
 
 ## Latest Changes
 
+## 0.0.1 (2026-08-08)
+
 ### Fixes
 
 * 🐛 Avoid hardcoding app version in tests. PR [#6](https://github.com/tiangolo/pr-push/pull/6) by [@tiangolo](https://github.com/tiangolo).
