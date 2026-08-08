@@ -1,0 +1,68 @@
+name: Prepare Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Release bump
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      date:
+        description: Release date in YYYY-MM-DD format. Defaults to today.
+        required: false
+        type: string
+
+permissions: {}
+
+jobs:
+  prepare-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version-file: .python-version
+      - name: Set up uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.11.18"
+          enable-cache: false
+      - name: Install dependencies
+        run: uv sync --locked
+      - name: Prepare release
+        run: uv run python scripts/prepare_release.py prepare
+        env:
+          PREPARE_RELEASE_BUMP: ${{ inputs.bump }}
+          PREPARE_RELEASE_DATE: ${{ inputs.date }}
+      - name: Update lockfile
+        run: uv lock
+      - name: Get release version
+        id: release-version
+        run: |
+          version="$(uv run python scripts/prepare_release.py current-version)"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Create release pull request
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PR_TOKEN }}
+          VERSION: ${{ steps.release-version.outputs.version }}
+        run: |
+          set -euo pipefail
+          branch="release-${VERSION}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add pyproject.toml README.md release-notes.md uv.lock
+          git commit -m "🔖 Release version ${VERSION}"
+          gh auth setup-git
+          git push --set-upstream origin "$branch"
+          gh pr create --base main --head "$branch" --title "🔖 Release version ${VERSION}" --body "Prepare release ${VERSION}." --label release
