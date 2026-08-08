@@ -76,7 +76,7 @@ Pass the deployment URL to the Action:
 
 ```yaml
 with:
-  url: https://pr-push.example.com
+  url: https://your-app.fastapicloud.dev
 ```
 
 ## License
