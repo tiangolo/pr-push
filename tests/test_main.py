@@ -45,7 +45,7 @@ def identity_client(settings: Settings) -> Iterator[TestClient]:
 
 
 def test_system_routes(client: TestClient) -> None:
-    assert client.get("/").json() == {"name": "PR Push", "version": "0.0.1"}
+    assert client.get("/").json() == {"name": "PR Push", "version": app.version}
     assert client.get("/health").json() == {"status": "ok"}
 
 
