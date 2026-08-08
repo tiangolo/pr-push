@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">PR Push</title>
+  <rect width="512" height="512" fill="#172b4d"/>
+  <path d="M152 170v172" fill="none" stroke="#fff" stroke-linecap="round" stroke-width="32"/>
+  <circle cx="152" cy="150" r="34" fill="#fff"/>
+  <circle cx="152" cy="362" r="34" fill="#fff"/>
+  <path d="M152 232c0 52 42 94 94 94h98" fill="none" stroke="#fff" stroke-linecap="round" stroke-width="32"/>
+  <path d="m326 274 52 52-52 52" fill="none" stroke="#36b37e" stroke-linecap="round" stroke-linejoin="round" stroke-width="32"/>
+</svg>
