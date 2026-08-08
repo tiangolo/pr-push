@@ -12,6 +12,7 @@ RUN uv sync --locked
 
 COPY pr_push /app/pr_push
 
-ENV PATH="/app/.venv/bin:$PATH"
+ENV PATH="/app/.venv/bin:$PATH" \
+    PYTHONPATH="/app"
 
 CMD ["python", "-m", "pr_push.action"]
