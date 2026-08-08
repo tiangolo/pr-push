@@ -42,11 +42,11 @@ Use the token only in the step that pushes the changes:
 - name: Commit and push changes
   if: github.event.pull_request.head.repo.full_name == github.repository
   env:
-    PR_PUSH_TOKEN: ${{ steps.pr-push.outputs.token }}
+    GH_TOKEN: ${{ steps.pr-push.outputs.token }}
   run: |
     git config user.name "pr-push[bot]"
     git config user.email "pr-push[bot]@users.noreply.github.com"
-    git remote set-url origin "https://x-access-token:${PR_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+    gh auth setup-git
     git add -A
     git commit -m "🎨 Auto format"
     git push
