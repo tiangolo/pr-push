@@ -58,13 +58,13 @@ Fork pull requests should use a separate service such as [pre-commit.ci Lite](ht
 
 PR Push accepts GitHub OIDC tokens only from `pull_request` workflows. The requesting workflow must be listed in `.github/pr-push.yml`, must match the version from the pull request's base commit, and must run for an open pull request from the same repository by an actor who currently has write permission.
 
-The returned GitHub App installation token has `contents: write` permission only and is scoped to the repository that requested it.
+The returned GitHub App installation token has `contents: write` and `workflows: write` permissions and is scoped to the repository that requested it. The workflows permission allows formatting commits to update files in `.github/workflows`.
 
 Do not add the GitHub App to branch protection or ruleset bypass lists.
 
 ## Deploy your own
 
-Create a GitHub App with read and write access to repository contents and generate a private key. It does not need webhooks, user authorization, a client secret, or any other repository permissions.
+Create a GitHub App with read and write access to repository contents and workflows, then generate a private key. It does not need webhooks, user authorization, a client secret, or any other repository permissions.
 
 Deploy this FastAPI app, for example to [FastAPI Cloud](https://fastapicloud.com), and set:
 

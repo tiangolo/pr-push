@@ -28,7 +28,10 @@ def test_action_gets_and_masks_token(
                 "token": "ghs_secret",
                 "expires_at": "2026-08-06T15:00:00Z",
                 "repository": "fastapi/fastapi",
-                "permissions": {"contents": "write"},
+                "permissions": {
+                    "contents": "write",
+                    "workflows": "write",
+                },
             },
         )
 
@@ -98,7 +101,10 @@ def test_action_main(
                 "token": "ghs_secret",
                 "expires_at": "2026-08-06T15:00:00Z",
                 "repository": "fastapi/fastapi",
-                "permissions": {"contents": "write"},
+                "permissions": {
+                    "contents": "write",
+                    "workflows": "write",
+                },
             },
         )
 

@@ -30,6 +30,7 @@ def github_transport(
                 "permissions": {
                     "contents": "write",
                     "metadata": "read",
+                    "workflows": "write",
                 },
                 "repository_selection": "selected",
                 "repositories": [{"id": claims.repository_id}],

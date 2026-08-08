@@ -26,6 +26,7 @@ GITHUB_API_URL = "https://api.github.com"
 GITHUB_API_VERSION = "2026-03-10"
 TOKEN_PERMISSIONS = {
     "contents": "write",
+    "workflows": "write",
 }
 EXPECTED_TOKEN_PERMISSIONS = {**TOKEN_PERMISSIONS, "metadata": "read"}
 
