@@ -2,6 +2,8 @@
 
 ## Latest Changes
 
+## 0.0.3 (2026-08-08)
+
 ### Fixes
 
 * 🐛 Support private repository pull requests. PR [#11](https://github.com/tiangolo/pr-push/pull/11) by [@tiangolo](https://github.com/tiangolo).

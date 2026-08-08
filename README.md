@@ -33,7 +33,7 @@ Request a token only for pull requests whose branch belongs to the same reposito
 - name: Get PR Push token
   id: pr-push
   if: github.event.pull_request.head.repo.full_name == github.repository
-  uses: tiangolo/pr-push@0.0.2
+  uses: tiangolo/pr-push@0.0.3
 ```
 
 Use the token only in the step that pushes the changes:
