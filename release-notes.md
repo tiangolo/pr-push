@@ -2,6 +2,8 @@
 
 ## Latest Changes
 
+## 0.0.2 (2026-08-08)
+
 * ✨ Allow formatting GitHub Actions workflows. PR [#9](https://github.com/tiangolo/pr-push/pull/9) by [@tiangolo](https://github.com/tiangolo).
 
 ### Internal
