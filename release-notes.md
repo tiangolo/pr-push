@@ -2,6 +2,8 @@
 
 ## Latest Changes
 
+## 0.0.4 (2026-08-18)
+
 ### Features
 
 * ✨ Support workflow dispatch on PR branches. PR [#19](https://github.com/tiangolo/pr-push/pull/19) by [@tiangolo](https://github.com/tiangolo).
