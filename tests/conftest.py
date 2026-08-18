@@ -57,3 +57,19 @@ def claims() -> OIDCClaims:
         iat=now - 10,
         nbf=now - 10,
     )
+
+
+@pytest.fixture
+def workflow_dispatch_claims(claims: OIDCClaims) -> OIDCClaims:
+    return OIDCClaims.model_validate(
+        {
+            **claims.model_dump(),
+            "workflow_ref": (
+                "fastapi/fastapi/.github/workflows/translate.yml"
+                "@refs/heads/translate-es"
+            ),
+            "workflow_sha": "head-sha",
+            "event_name": "workflow_dispatch",
+            "ref": "refs/heads/translate-es",
+        }
+    )

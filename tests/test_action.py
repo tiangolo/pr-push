@@ -30,7 +30,7 @@ def test_action_gets_and_masks_token(
                 "repository": "fastapi/fastapi",
                 "permissions": {
                     "contents": "write",
-                    "pull_requests": "read",
+                    "metadata": "read",
                     "workflows": "write",
                 },
             },
@@ -80,7 +80,6 @@ def test_action_main_requires_environment(
 def test_action_main(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
 ) -> None:
     output = tmp_path / "output"
     monkeypatch.delenv("INPUT_URL", raising=False)
@@ -104,7 +103,7 @@ def test_action_main(
                 "repository": "fastapi/fastapi",
                 "permissions": {
                     "contents": "write",
-                    "pull_requests": "read",
+                    "metadata": "read",
                     "workflows": "write",
                 },
             },
@@ -115,5 +114,4 @@ def test_action_main(
         lambda **kwargs: real_client(transport=httpx.MockTransport(handle)),
     )
     main()
-    assert capsys.readouterr().out == "::add-mask::ghs_secret\n"
     assert output.read_text() == "token=ghs_secret\n"

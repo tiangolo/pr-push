@@ -6,7 +6,7 @@ from urllib.parse import quote
 import httpx
 import jwt
 import yaml
-from pydantic import ValidationError
+from pydantic import TypeAdapter, ValidationError
 
 from pr_push.config import Settings
 from pr_push.models import (
@@ -24,12 +24,17 @@ from pr_push.models import (
 
 GITHUB_API_URL = "https://api.github.com"
 GITHUB_API_VERSION = "2026-03-10"
-TOKEN_PERMISSIONS = {
-    "contents": "write",
+AUTHORIZATION_TOKEN_PERMISSIONS = {
+    "contents": "read",
     "pull_requests": "read",
+}
+PULL_REQUEST_TOKEN_PERMISSIONS = {
+    "contents": "write",
     "workflows": "write",
 }
-EXPECTED_TOKEN_PERMISSIONS = {**TOKEN_PERMISSIONS, "metadata": "read"}
+WORKFLOW_DISPATCH_TOKEN_PERMISSIONS = {
+    "contents": "write",
+}
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +73,7 @@ def github_request(
     method: str,
     url: str,
     token: str,
-    params: dict[str, str] | None = None,
+    params: dict[str, str | int] | None = None,
     json: Any = None,
 ) -> httpx.Response:
     request_arguments: dict[str, Any] = {
@@ -107,7 +112,7 @@ def get_repository_file(
     response = github_request(
         client,
         "GET",
-        f"/repos/{repository}/contents/{path}",
+        f"/repos/{repository}/contents/{quote(path, safe='/')}",
         token,
         params={"ref": ref},
     )
@@ -117,12 +122,11 @@ def get_repository_file(
         raise GitHubAPIError("GitHub rejected the token request") from error
 
 
-def issue_installation_token(
+def get_installation(
     claims: OIDCClaims,
-    settings: Settings,
+    app_token: str,
     client: httpx.Client,
-) -> InstallationToken:
-    app_token = create_app_jwt(settings)
+) -> Installation:
     installation_response = github_request(
         client,
         "GET",
@@ -130,9 +134,18 @@ def issue_installation_token(
         app_token,
     )
     try:
-        installation = Installation.model_validate_json(installation_response.content)
+        return Installation.model_validate_json(installation_response.content)
     except ValidationError as error:
         raise GitHubAPIError("GitHub rejected the token request") from error
+
+
+def issue_installation_token(
+    claims: OIDCClaims,
+    installation: Installation,
+    permissions: dict[str, str],
+    app_token: str,
+    client: httpx.Client,
+) -> InstallationToken:
     token_response = github_request(
         client,
         "POST",
@@ -140,15 +153,16 @@ def issue_installation_token(
         app_token,
         json={
             "repository_ids": [claims.repository_id],
-            "permissions": TOKEN_PERMISSIONS,
+            "permissions": permissions,
         },
     )
     try:
         token = InstallationToken.model_validate_json(token_response.content)
     except ValidationError as error:
         raise GitHubAPIError("GitHub rejected the token request") from error
+    expected_permissions = {**permissions, "metadata": "read"}
     if (
-        token.permissions != EXPECTED_TOKEN_PERMISSIONS
+        token.permissions != expected_permissions
         or token.repository_selection != "selected"
         or [repository.id for repository in token.repositories]
         != [claims.repository_id]
@@ -167,11 +181,53 @@ def issue_installation_token(
     return token
 
 
-def authorize_workflow(
+def get_pull_request(
     claims: OIDCClaims,
+    repository: Repository,
     token: str,
     client: httpx.Client,
-) -> None:
+) -> PullRequest:
+    if claims.event_name == "pull_request":
+        pull_response = github_request(
+            client,
+            "GET",
+            f"/repos/{claims.repository}/pulls/{claims.pull_request_number}",
+            token,
+        )
+        return PullRequest.model_validate_json(pull_response.content)
+
+    if claims.branch_name == repository.default_branch:
+        raise WorkflowNotAllowedError("workflow is running from the default branch")
+    owner, _, _ = claims.repository.partition("/")
+    pulls_response = github_request(
+        client,
+        "GET",
+        f"/repos/{claims.repository}/pulls",
+        token,
+        params={
+            "state": "open",
+            "head": f"{owner}:{claims.branch_name}",
+            "base": repository.default_branch,
+            "per_page": 2,
+        },
+    )
+    pull_requests = TypeAdapter(list[PullRequest]).validate_json(pulls_response.content)
+    if len(pull_requests) != 1:
+        raise WorkflowNotAllowedError(
+            "branch does not identify exactly one open pull request"
+        )
+    pull_request = pull_requests[0]
+    if pull_request.head.sha != claims.workflow_sha:
+        raise WorkflowNotAllowedError("pull request head SHA does not match")
+    return pull_request
+
+
+def authorize_workflow(
+    claims: OIDCClaims,
+    installation: Installation,
+    token: str,
+    client: httpx.Client,
+) -> int:
     try:
         repository_response = github_request(
             client, "GET", f"/repos/{claims.repository}", token
@@ -191,13 +247,7 @@ def authorize_workflow(
         if claims.workflow_path not in config.workflows:
             raise WorkflowNotAllowedError("workflow is not listed in the configuration")
 
-        pull_response = github_request(
-            client,
-            "GET",
-            f"/repos/{claims.repository}/pulls/{claims.pull_request_number}",
-            token,
-        )
-        pull_request = PullRequest.model_validate_json(pull_response.content)
+        pull_request = get_pull_request(claims, repository, token, client)
         if pull_request.state != "open":
             raise WorkflowNotAllowedError("pull request is not open")
         if pull_request.head.repo.id != claims.repository_id:
@@ -214,7 +264,11 @@ def authorize_workflow(
         )
         if permission.user.id != claims.actor_id:
             raise WorkflowNotAllowedError("actor ID does not match")
-        if permission.permission not in {"admin", "write"}:
+        is_app_actor = (
+            claims.event_name == "pull_request"
+            and claims.actor == f"{installation.app_slug}[bot]"
+        )
+        if permission.permission not in {"admin", "write"} and not is_app_actor:
             raise WorkflowNotAllowedError("actor does not have write permission")
 
         trusted_workflow = get_repository_file(
@@ -233,17 +287,19 @@ def authorize_workflow(
         )
         if trusted_workflow.sha != executed_workflow.sha:
             raise WorkflowNotAllowedError("workflow differs from the trusted version")
+        return pull_request.number
     except WorkflowNotAllowedError as error:
         logger.warning(
             "Workflow authorization rejected: reason=%s repository=%s "
-            "repository_id=%s actor=%s actor_id=%s workflow=%s pull_request=%s",
+            "repository_id=%s actor=%s actor_id=%s event=%s ref=%s workflow=%s",
             str(error),
             claims.repository,
             claims.repository_id,
             claims.actor,
             claims.actor_id,
+            claims.event_name,
+            claims.ref,
             claims.workflow_path,
-            claims.pull_request_number,
         )
         raise
     except (ValidationError, ValueError, yaml.YAMLError) as error:
@@ -265,17 +321,41 @@ def create_token(
     settings: Settings,
     client: httpx.Client,
 ) -> TokenResponse:
-    installation_token = issue_installation_token(claims, settings, client)
-    authorize_workflow(claims, installation_token.token, client)
+    app_token = create_app_jwt(settings)
+    installation = get_installation(claims, app_token, client)
+    authorization_token = issue_installation_token(
+        claims,
+        installation,
+        AUTHORIZATION_TOKEN_PERMISSIONS,
+        app_token,
+        client,
+    )
+    pull_request_number = authorize_workflow(
+        claims, installation, authorization_token.token, client
+    )
+    permissions = (
+        PULL_REQUEST_TOKEN_PERMISSIONS
+        if claims.event_name == "pull_request"
+        else WORKFLOW_DISPATCH_TOKEN_PERMISSIONS
+    )
+    installation_token = issue_installation_token(
+        claims,
+        installation,
+        permissions,
+        app_token,
+        client,
+    )
     logger.info(
         "Installation token issued: repository=%s repository_id=%s actor=%s "
-        "actor_id=%s workflow=%s pull_request=%s expires_at=%s",
+        "actor_id=%s event=%s ref=%s workflow=%s pull_request=%s expires_at=%s",
         claims.repository,
         claims.repository_id,
         claims.actor,
         claims.actor_id,
+        claims.event_name,
+        claims.ref,
         claims.workflow_path,
-        claims.pull_request_number,
+        pull_request_number,
         installation_token.expires_at.isoformat(),
     )
     return TokenResponse(
