@@ -2,6 +2,10 @@
 
 ## Latest Changes
 
+### Upgrades
+
+* ⬆️ Use latest-known uv and upgrade GitHub Actions. PR [#24](https://github.com/tiangolo/pr-push/pull/24) by [@dependabot[bot]](https://github.com/apps/dependabot).
+
 ## 0.0.4 (2026-08-18)
 
 ### Features
