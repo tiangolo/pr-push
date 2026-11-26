@@ -6,6 +6,10 @@
 
 * ⬆️ Use latest-known uv and upgrade GitHub Actions. PR [#24](https://github.com/tiangolo/pr-push/pull/24) by [@dependabot[bot]](https://github.com/apps/dependabot).
 
+### Internal
+
+* 🔒️ Generate GH actions workflow lockfile and bump Zizmor. PR [#26](https://github.com/tiangolo/pr-push/pull/26) by [@YuriiMotov](https://github.com/YuriiMotov).
+
 ## 0.0.4 (2026-08-18)
 
 ### Features
